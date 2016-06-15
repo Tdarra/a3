@@ -1,5 +1,5 @@
 #ifdef _RBTREE_H_
-
+// TAJ MADE A CHANGE
 template <typename T>
 RBTree<T>::RBTree() : size(0), root(NULL){}
 
@@ -82,11 +82,12 @@ bool RBTree<T>::Remove(T item){
 		flag = true;
 		Node<T>* kill_node = Find(item);
 		Node<T>* tempy = NULL;
-		Node<T>* tempx
+		Node<T>* tempx;
 		if(kill_node->right == NULL || kill_node->left == NULL)
 			tempy = kill_node;
-		else
+		else{
 			tempy = Predecessor(kill_node);
+		}
 		if(tempy->left != NULL)
 			tempx = tempy->left;
 		else
@@ -101,8 +102,7 @@ bool RBTree<T>::Remove(T item){
 		if(tempy != kill_node)
 			kill_node->data = tempy->data;
 		if(tempy->is_black)
-			bool is_left_child = tempx == tempx->p->left;
-			RBRemoveFixUp(tempx,tempx->p, is_left_child);
+			RBRemoveFixUp(tempx,tempx->p, (tempx == tempx->p->left));
 	}
 	return flag;
 }
@@ -200,7 +200,7 @@ void RBTree<T>::RBRemoveFixUp(Node<T>* x, Node<T>* xparent, bool xisleftchild){
 		}
 	}
 
-} //FIXME
+ //FIXME
 
 template <typename T>
 int RBTree<T>::ComputeHeight(Node<T>* node) const {
