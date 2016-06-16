@@ -1,22 +1,26 @@
 #ifdef _RBTREE_H_
-// TAJ MADE A CHANGE
+
 template <typename T>
 RBTree<T>::RBTree() : size(0), root(NULL){}
 
 template <typename T>
 RBTree<T>::RBTree(const RBTree<T>& rbtree) : size(0) {
-	// CopyTree(rbtree, rbtree.p);
+    root = CopyTree(rbtree.GetRoot(), NULL);
+	size = rbtree.Size();
 }
 
 template <typename T>
 RBTree<T>::~RBTree(){
-	RemoveAll(); //FIXME
+	if (size > 0) {
+		RemoveAll();
+	}
 }
 
 template <typename T>
 RBTree<T>& RBTree<T>::operator=(const RBTree<T>& rbtree){
-	// if (this != NULL)
-	// 	CopyTree(rbtree, rbtree.p);
+	RemoveAll();
+	root = CopyTree(rbtree.GetRoot(), NULL);
+	size = rbtree.Size();
 	return *this;
 }
 
@@ -25,7 +29,6 @@ bool RBTree<T>::Insert(T item){
 	bool flag = false;
 	Node<T>* inserted_node = NULL;
 	if (!Contains(item)){
-		flag = true;
 		inserted_node = BSTInsert(item); // normal BST insertion method
 		inserted_node->is_black = false;
 		while (inserted_node != root && !inserted_node->p->is_black){ // iterates until root or black parent is reached
@@ -48,7 +51,7 @@ bool RBTree<T>::Insert(T item){
 					RotateRight(inserted_node->p->p);
 				}
 			}
-			else {
+			if (inserted_node->p == inserted_node->p->p->right) {
 				Node<T>* aunt = inserted_node->p->p->left;
 				if(!aunt->is_black){
 					inserted_node->p->is_black = true;
@@ -68,43 +71,104 @@ bool RBTree<T>::Insert(T item){
 			}
 		}
 		root->is_black = true;//FIXME
+		flag = true;
+		size++;
+
 	}
 
 	return flag;
-	
+
 
 }
 
 template <typename T>
-bool RBTree<T>::Remove(T item){
-	bool flag = false;
-	if (Contains(item)){
-		flag = true;
-		Node<T>* kill_node = Find(item);
-		Node<T>* tempy = NULL;
-		Node<T>* tempx;
-		if(kill_node->right == NULL || kill_node->left == NULL)
-			tempy = kill_node;
-		else{
-			tempy = Predecessor(kill_node);
-		}
-		if(tempy->left != NULL)
-			tempx = tempy->left;
-		else
-			tempx = tempy->right;
-		tempx->p = tempy->p;
-		if (tempy->p == NULL)
-			root = tempx;
-		else if (tempy == tempy->p->left)
-			tempy->p->left = tempx;
-		else
-			tempy->p->right = tempx;
-		if(tempy != kill_node)
-			kill_node->data = tempy->data;
-		if(tempy->is_black)
-			RBRemoveFixUp(tempx,tempx->p, (tempx == tempx->p->left));
+bool RBTree<T>::Remove(T item){// Unable to find item
+	if (size == 0 || !Contains(item)) {
+		return false;
 	}
-	return flag;
+
+	// Only node (root) node data does not match
+	else if (size == 1 && root->data != item) {
+		return false;
+	}
+
+	Node<T>* delete_this = root;
+	// Finding the node for deletion
+	while (delete_this != NULL) {
+		if (item == delete_this->data) {
+			break;
+		}
+
+		// Right
+		else if (item > delete_this->data) {
+			delete_this = delete_this->right;
+		}
+
+		//left
+		else if (item < delete_this->data) {
+			delete_this = delete_this->left;
+		}
+	}
+
+	// Following algortihm taken from Lecture Slide
+	Node<T>* y;
+	Node<T>* x;
+
+	// Both children are empty. Able to delete
+	if (delete_this->left == NULL && delete_this->right == NULL) {
+		delete delete_this;
+		size--;
+		delete_this = NULL; // setting empty pointer to NULL
+		return true;
+	}
+
+	// There is at least one child
+	if (delete_this->left == NULL || delete_this->right == NULL) {
+		y = delete_this;
+	}
+
+	// delete_this has two children
+	else {
+		y = Predecessor(delete_this);
+	}
+
+	if (y->left != NULL) {
+		x = y->left;
+	}
+
+	else {
+		x = y->right;
+	}
+
+	x->p = y->p; // Detach x from y (if x is no NULL)
+
+	// Delete node is root
+	if (x->p == NULL) {
+		root = x;
+	}
+
+	else {
+		// Attach x to y's parent
+		if (y == y->p->left) { // left child
+			y->p->left = x;
+		}
+
+		else {
+			y->p->right = x;
+		}
+	}
+
+	if (y != delete_this) {
+		delete_this->data = y->data; // y is the predessor
+	}
+
+	if (y->is_black) {
+		RBRemoveFixUp(x, x->p, x == x->p->left); // x could be NULL
+	}
+
+	delete delete_this;
+	delete_this = NULL; // Set empty pointer to NULL
+	size--;
 }
 
 template <typename T>
@@ -117,7 +181,7 @@ int RBTree<T>::Size() const {return size;}
 
 template <typename T>
 int RBTree<T>::Height() const {
-	ComputeHeight(root);
+	return ComputeHeight(root);
 }
 
 // template <typename T>
@@ -131,81 +195,115 @@ int RBTree<T>::Height() const {
 
 template <typename T>
 Node<T>* RBTree<T>::CopyTree(Node<T>* sourcenode, Node<T>* parentnode){
-	return NULL; //FIXME
+    if (sourcenode == NULL) {
+		return NULL;
+	}
+
+	Node<T>* new_node = new Node<T>(sourcenode->data);
+	new_node->p = parentnode;
+	new_node->left = CopyTree(sourcenode->left, new_node);
+	new_node->right = CopyTree(sourcenode->right, new_node);
+
+	return new_node;
 }
 template <typename T>
-void RBTree<T>::RemoveAll(Node<T>* node){} //FIXME
+void RBTree<T>::RemoveAll(Node<T>* node){
+if (node != NULL) {
+		RemoveAll(node->left);
+		RemoveAll(node->right);
+		delete node;
+		node = NULL;
+	}
+}
 
 template <typename T>
 void RBTree<T>::RBRemoveFixUp(Node<T>* x, Node<T>* xparent, bool xisleftchild){
-	Node<T>* w = NULL;
+	Node<T>* xsibling;
 
-	while(x != root && x->is_black){
-		while (xisleftchild){ // might need to be replaced with if instead...
-			w = xparent->right;
-			if (!w->is_black){
-				w->is_black = true;
-				xparent->is_black = false;
-				RotateLeft(x->p);
-				w = xparent->right;
-				}
-			if (w->left->is_black && w->right->is_black){
-				w->is_black = false;
+
+	while (x != root && x->is_black && x != NULL) {
+		if (xisleftchild) {
+			xsibling = xparent->right;
+
+			// Red sibling to x
+			if (!xsibling->is_black) {
+				xsibling->is_black = true;
+				xparent->is_black = false; // x's parent must have been black
+				RotateLeft(xparent);
+				xsibling = xparent->right;
+			}
+
+			if (xsibling->is_black && xparent->is_black) {
+				xsibling->is_black = false;
 				x = xparent;
-				
-				if (w->right->is_black){
-					w->left->is_black = true;
-					w->is_black = false;
-					RotateRight(w);
-					w = xparent->right;
+			}
+
+			else {
+				if (xsibling->right->is_black) {
+					xsibling->left->is_black = true;
+					xsibling->is_black = true;
+					RotateRight(xsibling);
+					xsibling = xparent->right;
 				}
-			
-				w->is_black = xparent->is_black;
+
+				xsibling->is_black = xparent->is_black;
 				xparent->is_black = true;
-				w->right->is_black = true;
+				xsibling->right->is_black = true;
 				RotateLeft(xparent);
 				x = root;
 			}
+		}
 
+		// Symmetric to if
+		else {
+			xsibling = xparent->left;
 
-			}
-			while (!xisleftchild){ // might need to be replaced with if...
-				w = xparent->left;
-				if (!w->is_black){
-				w->is_black = true;
-				xparent->is_black = false;
+			// Red sibling to x
+			if (!xsibling->is_black) {
+				xsibling->is_black = true;
+				xparent->is_black = false; // x's parent must have been black
 				RotateRight(xparent);
-				w = xparent->left;
-				}
-			if (w->right->is_black && w->left->is_black){
-				w->is_black = false;
+				xsibling = xparent->left;
+			}
+
+			if (xsibling->is_black && xparent->is_black) {
+				xsibling->is_black = false;
 				x = xparent;
-				
-				if (w->left->is_black){
-					w->right->is_black = true;
-					w->is_black = false;
-					RotateLeft(w);
-					w = xparent->left;
+			}
+
+			else {
+				if (xsibling->left->is_black) {
+					xsibling->right->is_black = true;
+					xsibling->is_black = true;
+					RotateLeft(xsibling);
+					xsibling = xparent->left;
 				}
-			
-				w->is_black = xparent->is_black;
+
+				xsibling->is_black = xparent->is_black;
 				xparent->is_black = true;
-				w->left->is_black = true;
+				xsibling->left->is_black = true;
 				RotateRight(xparent);
 				x = root;
 			}
-
-			}
-
 		}
+	} // end of while loop
+	x->is_black = true;
 	}
 
- //FIXME
+
 
 template <typename T>
-int RBTree<T>::ComputeHeight(Node<T>* node) const {
-	return 0; //FIXME
+int RBTree<T>::ComputeHeight(Node<T>* node) const
+{
+	if (root == NULL)
+		return 0;
+	else if (root!= NULL && root->left == NULL && root->right == NULL)
+		return 1;
+	else
+		return (ComputeHeight(root->left) > ComputeHeight(root->right) ? ComputeHeight(root->left) : ComputeHeight(root->right))+1;
 }
+
+
 
 
 
